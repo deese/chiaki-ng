@@ -5,6 +5,9 @@ on:
 
 jobs:
   github-releases-to-discord:
+    # Disabled in this fork: it announces releases on upstream's Discord webhook
+    # (secrets.WEBHOOK_URL) and hardcodes links to streetpea/chiaki-ng.
+    if: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

@@ -77,18 +77,21 @@ jobs:
       working-directory: ${{ github.workspace }}
       run: |
         echo -e "Weekly Test Build\n" > release_notes.md
-    - uses: ncipollo/release-action@v1
+    - name: Create prerelease
       id: maker
-      with:
-        prerelease: true
-        commit: ${{ github.sha }}
-        tag: weekly-canary-release-${{ github.sha }}
-        allowUpdates: true
-        bodyFile: "${{ github.workspace }}/release_notes.md"
-        token: "${{ secrets.RELEASE_PAT }}"
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        TAG="weekly-canary-release-${GITHUB_SHA}"
+        if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+          gh release edit "${TAG}" --repo "${GITHUB_REPOSITORY}" --notes-file release_notes.md --prerelease
+        else
+          gh release create "${TAG}" --repo "${GITHUB_REPOSITORY}" --target "${GITHUB_SHA}" --title "${TAG}" --notes-file release_notes.md --prerelease
+        fi
+        echo "upload_url=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq .upload_url)" >> "$GITHUB_OUTPUT"
     - uses: sgpublic/delete-release-action@v1.2
       with:
-        repo: 'streetpea/chiaki-ng'
+        repo: ${{ github.repository }}
         release-drop: false
         pre-release-drop: true
         pre-release-keep-count: 1
