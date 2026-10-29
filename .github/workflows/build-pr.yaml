@@ -21,7 +21,7 @@ jobs:
         run: |
           git config --global core.autocrlf false
           git config --global core.eol lf
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - uses: msys2/setup-msys2@v2
@@ -107,21 +107,25 @@ jobs:
           echo "RELEASE_PACKAGE_PATH=${RELEASE_PACKAGE_FILE}" >> $GITHUB_ENV
 
       - name: Upload chiaki-ng Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: chiaki-ng-win_x64-MSYS2-Release-portable.zip
           path: ${{ env.RELEASE_PACKAGE_PATH }}
           if-no-files-found: error
           retention-days: 7
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
       - name: Compile .ISS to .EXE Installer
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
-        with:
-          path: "scripts/chiaki-ng.iss"
-          options: /O+
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\iscc.exe"
+          if (-not (Test-Path -LiteralPath $iscc)) { $iscc = (Get-Command iscc.exe -ErrorAction Stop).Source }
+          & $iscc "$env:GITHUB_WORKSPACE\scripts\chiaki-ng.iss" "/O+"
 
       - name: Upload chiaki-ng Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: chiaki-ng-win_x64-MSYS2-Release-installer.exe
           path: chiaki-ng-windows-installer.exe
@@ -134,7 +138,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -190,7 +194,7 @@ jobs:
           cp chiaki-ng.dmg chiaki-ng-macos_arm64-Release.dmg
 
       - name: Upload chiaki-ng Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: chiaki-ng-macos_arm64-Release.dmg
           path: chiaki-ng-macos_arm64-Release.dmg
@@ -210,7 +214,7 @@ jobs:
           sudo apt-get -y install podman
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: 'recursive'
           path: 'chiaki-ng'
@@ -234,7 +238,7 @@ jobs:
           cp appimage/chiaki-ng.AppImage appimage/chiaki-ng.AppImage_x86_64
 
       - name: Upload chiaki-ng Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: chiaki-ng.AppImage_x86_64
           path: chiaki-ng/appimage/chiaki-ng.AppImage_x86_64
@@ -253,7 +257,7 @@ jobs:
           sudo apt-get -y install podman
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: 'recursive'
           path: 'chiaki-ng'
@@ -277,7 +281,7 @@ jobs:
           cp appimage/chiaki-ng.AppImage appimage/chiaki-ng.AppImage_arm64
 
       - name: Upload chiaki-ng Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: chiaki-ng.AppImage_arm64
           path: chiaki-ng/appimage/chiaki-ng.AppImage_arm64

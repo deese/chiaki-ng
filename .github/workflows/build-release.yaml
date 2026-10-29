@@ -4,6 +4,9 @@ on:
   push:
     tags: [ 'v*.*.*' ]
 
+env:
+  RELEASE_TAG: ${{ github.ref_name }}
+
 jobs:
   create-release:
     name: Upload release
@@ -11,7 +14,7 @@ jobs:
     permissions:
       contents: write
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         ref: ${{ github.ref }}
     - name: generate release notes
@@ -20,7 +23,6 @@ jobs:
         git tag -l --format='%(contents)' ${GITHUB_REF_NAME} >> doc/release_notes.md
 
     - name: Create release
-      id: maker
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
@@ -29,9 +31,6 @@ jobs:
         else
           gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --title "${GITHUB_REF_NAME}" --notes-file doc/release_notes.md
         fi
-        echo "upload_url=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${GITHUB_REF_NAME}" --jq .upload_url)" >> "$GITHUB_OUTPUT"
-    outputs:
-      upload_url: ${{ steps.maker.outputs.upload_url }}
 
   build-windows_x64-msys2:
     name: Build windows msys2 version
@@ -50,7 +49,7 @@ jobs:
         run: |
           git config --global core.autocrlf false
           git config --global core.eol lf
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - uses: msys2/setup-msys2@v2
@@ -137,30 +136,42 @@ jobs:
           echo "RELEASE_PACKAGE_PATH=${RELEASE_PACKAGE_FILE}" >> $GITHUB_ENV
 
       - name: Upload chiaki-ng Artifact
-        uses: nanoufo/action-upload-artifacts-and-release-assets@v2
+        uses: actions/upload-artifact@v7
         with:
           path: ${{ env.RELEASE_PACKAGE_PATH }}
-          upload-release-files: true
           if-no-files-found: error
-          release-upload-url: ${{ needs.create-release.outputs.upload_url }}
+      - name: Upload to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${RELEASE_TAG}" "$RELEASE_PACKAGE_PATH" --clobber --repo "${GITHUB_REPOSITORY}"
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
       - name: Compile .ISS to .EXE Installer
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
-        with:
-          path: "scripts/chiaki-ng.iss"
-          options: /O+
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\iscc.exe"
+          if (-not (Test-Path -LiteralPath $iscc)) { $iscc = (Get-Command iscc.exe -ErrorAction Stop).Source }
+          & $iscc "$env:GITHUB_WORKSPACE\scripts\chiaki-ng.iss" "/O+"
 
       - name: Rename installer
         run: |
           cp chiaki-ng-windows-installer.exe chiaki-ng-win_x64-MSYS2-installer.exe
 
       - name: Upload chiaki-ng Artifact
-        uses: nanoufo/action-upload-artifacts-and-release-assets@v2
+        uses: actions/upload-artifact@v7
         with:
           path: chiaki-ng-win_x64-MSYS2-installer.exe
-          upload-release-files: true
           if-no-files-found: error
-          release-upload-url: ${{ needs.create-release.outputs.upload_url }}
+      - name: Upload to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${RELEASE_TAG}" "chiaki-ng-win_x64-MSYS2-installer.exe" --clobber --repo "${GITHUB_REPOSITORY}"
 
   build-windows_arm64-msys2:
     name: Build windows msys2 arm version
@@ -177,7 +188,7 @@ jobs:
         run: |
           git config --global core.autocrlf false
           git config --global core.eol lf
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - uses: msys2/setup-msys2@v2
@@ -262,37 +273,53 @@ jobs:
           zip -r $RELEASE_PACKAGE_FILE chiaki-ng-Win
           echo "RELEASE_PACKAGE_PATH=${RELEASE_PACKAGE_FILE}" >> $GITHUB_ENV
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
       - name: Compile .ISS to .EXE Installer
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
-        with:
-          path: "scripts/chiaki-ng.iss"
-          options: /O+
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\iscc.exe"
+          if (-not (Test-Path -LiteralPath $iscc)) { $iscc = (Get-Command iscc.exe -ErrorAction Stop).Source }
+          & $iscc "$env:GITHUB_WORKSPACE\scripts\chiaki-ng.iss" "/O+"
 
       - name: Upload chiaki-ng Artifact
-        uses: nanoufo/action-upload-artifacts-and-release-assets@v2
+        uses: actions/upload-artifact@v7
         with:
           path: ${{ env.RELEASE_PACKAGE_PATH }}
-          upload-release-files: true
           if-no-files-found: error
-          release-upload-url: ${{ needs.create-release.outputs.upload_url }}
+      - name: Upload to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${RELEASE_TAG}" "$RELEASE_PACKAGE_PATH" --clobber --repo "${GITHUB_REPOSITORY}"
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
       - name: Compile .ISS to .EXE Installer
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
-        with:
-          path: "scripts/chiaki-ng.iss"
-          options: /O+
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\iscc.exe"
+          if (-not (Test-Path -LiteralPath $iscc)) { $iscc = (Get-Command iscc.exe -ErrorAction Stop).Source }
+          & $iscc "$env:GITHUB_WORKSPACE\scripts\chiaki-ng.iss" "/O+"
 
       - name: Rename installer
         run: |
           cp chiaki-ng-windows-installer.exe chiaki-ng-win_arm64-MSYS2-installer.exe
 
       - name: Upload chiaki-ng Artifact
-        uses: nanoufo/action-upload-artifacts-and-release-assets@v2
+        uses: actions/upload-artifact@v7
         with:
           path: chiaki-ng-win_arm64-MSYS2-installer.exe
-          upload-release-files: true
           if-no-files-found: error
-          release-upload-url: ${{ needs.create-release.outputs.upload_url }}
+      - name: Upload to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${RELEASE_TAG}" "chiaki-ng-win_arm64-MSYS2-installer.exe" --clobber --repo "${GITHUB_REPOSITORY}"
 
   build-mac_arm64_github:
     name: Build macOSX arm64 version Github
@@ -301,7 +328,7 @@ jobs:
       contents: write
     needs: create-release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -357,13 +384,17 @@ jobs:
           cp chiaki-ng.dmg chiaki-ng-macos_arm64-Release.dmg
 
       - name: Upload chiaki-ng Artifact
-        uses: nanoufo/action-upload-artifacts-and-release-assets@v2
+        uses: actions/upload-artifact@v7
         with:
           path: |
             chiaki-ng-macos_arm64-Release.dmg
           if-no-files-found: error
-          upload-release-files: true
-          release-upload-url: ${{ needs.create-release.outputs.upload_url }}
+      - name: Upload to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${RELEASE_TAG}" "chiaki-ng-macos_arm64-Release.dmg" --clobber --repo "${GITHUB_REPOSITORY}"
 
   build-appimage_x64:
     name: Build chiaki-ng appimage_x64
@@ -379,7 +410,7 @@ jobs:
           sudo apt-get -y install podman
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: 'recursive'
           path: 'chiaki-ng'
@@ -403,13 +434,17 @@ jobs:
           cp appimage/chiaki-ng.AppImage appimage/chiaki-ng.AppImage_x86_64
 
       - name: Upload chiaki-ng Artifact
-        uses: nanoufo/action-upload-artifacts-and-release-assets@v2
+        uses: actions/upload-artifact@v7
         with:
           path: |
             chiaki-ng/appimage/chiaki-ng.AppImage_x86_64
-          upload-release-files: true
           if-no-files-found: error
-          release-upload-url: ${{ needs.create-release.outputs.upload_url }}
+      - name: Upload to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${RELEASE_TAG}" "chiaki-ng/appimage/chiaki-ng.AppImage_x86_64" --clobber --repo "${GITHUB_REPOSITORY}"
 
   build-appimage_arm64:
     name: Build chiaki-ng appimage_arm64
@@ -424,7 +459,7 @@ jobs:
           sudo apt-get -y install podman
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: 'recursive'
           path: 'chiaki-ng'
@@ -448,10 +483,14 @@ jobs:
           cp appimage/chiaki-ng.AppImage appimage/chiaki-ng.AppImage_arm64
 
       - name: Upload chiaki-ng Artifact
-        uses: nanoufo/action-upload-artifacts-and-release-assets@v2
+        uses: actions/upload-artifact@v7
         with:
           path: |
             chiaki-ng/appimage/chiaki-ng.AppImage_arm64
-          upload-release-files: true
           if-no-files-found: error
-          release-upload-url: ${{ needs.create-release.outputs.upload_url }}
+      - name: Upload to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${RELEASE_TAG}" "chiaki-ng/appimage/chiaki-ng.AppImage_arm64" --clobber --repo "${GITHUB_REPOSITORY}"

@@ -10,7 +10,7 @@ jobs:
     if: false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.ref }}
       - name: Sleep for 1 hour to wait for release artifacts to be published before putting out Discord notification
